@@ -5,6 +5,7 @@ Application to Text Segmentation in Natural Images.
 
 import cv2 as cv
 import numpy as np
+import random as rand
 
 blocks = set()
 
@@ -13,11 +14,11 @@ def is_homogeneous(x,y):
 
 def main():
 
-    A = cv.imread('img/img3.jpg')
+    A = cv.imread('img/img5.jpg')
     # Passo 1:
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
-    width, height = img_cinza.shape
+    height, width = img_cinza.shape
 
     cv.imshow('Grayscale',img_cinza)
     cv.waitKey(0)
@@ -25,10 +26,10 @@ def main():
     kernel = np.ones((5,5),np.float32)/25
     img_blur = cv.filter2D(img_cinza,-1,kernel)
 
-    k = 4
+    k = 2
 
     W = []
-    threshold = 15.0
+    threshold = 1.0
 
     w1 = np.zeros((k, k))
 
@@ -78,7 +79,7 @@ def main():
                     for n in range(0,k):
                         if(i + m < height and j + n < width):
                             for p in range(0,2):
-                                delta[p] += img_cinza[j+n][i+m] * W[p][m][n]
+                                delta[p] += img_cinza[i+m][j+n] * W[p][m][n]
                 #for i in range(0,2):
                 #    print("delta = ", delta[i])
                 delta *= 2
@@ -87,10 +88,7 @@ def main():
                 if norm_val < threshold:
                     blocks.add((i,j))
 
-    print(len(blocks))
-
     img_final = img_cinza.copy()
-    img_final2 = img_final.copy()
 
     homo_blocks = set()
 
@@ -110,11 +108,7 @@ def main():
         if is_homogeneous(i, j+k):
             homo_blocks.add((i,j+k))
 
-        if((i % k == 0) and (j % k == 0)):
-            for m in range(0, k):
-                for n in range(0,k):
-                    if(i + m < height and j + n < width):
-                        img_final[j+n][i+m] = 0
+    homogeneous_img = np.zeros((height, width), np.uint8)
 
     for b in homo_blocks:
         i = b[0]
@@ -124,11 +118,33 @@ def main():
             for m in range(0, k):
                 for n in range(0,k):
                     if(i + m < height and j + n < width):
-                        img_final2[j+n][i+m] = 0
+                        img_final[i+m][j+n] = 0
+                        homogeneous_img[i+m][j+n] = 255
 
-    cv.imshow('Painted blocks',img_final2)
+    im_floodfill = homogeneous_img.copy()
+
+    mask = np.zeros((height + 2, width + 2), np.uint8)
+
+    r = 0
+
+    for i in range(0, height):
+        for j in range(0, width):
+            if (i,j) in homo_blocks:
+                cv.floodFill(im_floodfill, mask, (j, i), r)
+                r = rand.randint(0, 255)
+                print(r)
+                
+
+    cv.imshow('Painted blocks',img_final)
     cv.waitKey(0)
    
+    cv.imshow('Imagem com blocos',homogeneous_img)
+    cv.waitKey(0)
+
+    cv.imshow('Floodfill',im_floodfill)
+    cv.waitKey(0)
+
+
    
     cv.destroyAllWindows()
 
