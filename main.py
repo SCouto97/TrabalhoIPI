@@ -7,6 +7,7 @@ import cv2 as cv
 import numpy as np
 
 blocks = set()
+img_cinza = np.zeros((0, 0))
 
 def is_homogeneous(x,y):
     return (x,y) in blocks
@@ -24,64 +25,92 @@ def norm8(I):
     I *= 255
     return I.astype(np.uint8)
 
+def bfsFill(img, point):
+    black_threshold = 10
+    fill_color = 255
+    height, width = img.shape
+
+    if (img[point[0]][point[1]] > black_threshold):
+        return
+
+    roff = [-1,0,1,0]
+    coff = [0,1,0,-1]
+
+    q = Queue()
+    q.put(point)
+    total = 0
+    color_sum = 0
+    while not q.empty():
+        cur = q.get()
+        total += 1
+        color_sum += img_cinza[cur[0]][cur[1]]
+
+        for k in range(0,len(roff)):
+            i = cur[0] + roff[k]
+            j = cur[1] + roff[k]
+
+            if (i >= 0 and i < height and j >= 0 and j < width and img[i][j] <= black_threshold):
+                img[i][j] = fill_color 
+                q.put((i,j))
+
+    return total, color_sum
+
 def main():
 
-    A = cv.imread('img/img3.jpg')
-    A = cv.resize(A, ( int(A.shape[1]/2),int(A.shape[0]/2)))
+    div = 2.0
+    k = 2
+    threshold = 10
+
+    A = cv.imread('img/img8.jpg')
+    A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
     height, width = img_cinza.shape
 
-    k = 4
 
     W = []
-    threshold = 1
 
     w1 = np.zeros((k, k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(j < k/2):
-                if(i < k/2):
+            if i%2 == 0:
+                if j%2 == 0:
                     w1[i][j] = 1
                 else:
                     w1[i][j] = -1
             else:
-                if(i >= k/2):
-                    w1[i][j] = 1
-                else:
+                if j%2 == 0:
                     w1[i][j] = -1
+                else:
+                    w1[i][j] = 1
 
     w2 = np.zeros((k,k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(i < k/2):
-                w2[i][j] = -1
-            else:
+            if j%2 == 0:
                 w2[i][j] = 1
+            else:
+                w2[i][j] = -1
 
 
     w3 = np.zeros((k,k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(j < k/2):
+            if i%2 == 0:
                 w3[i][j] = 1
             else:
                 w3[i][j] = -1
 
-    w4 = np.zeros((k,k))
-
-    for i in range(0,k):
-        for j in range(0,k):
-            w4[i][j] = 1 if j % 2 == 0 else -1
 
     W.append(w1)
     W.append(w2)
     W.append(w3)
-#    W.append(w4)
+
+    # print(W);
 
     delta = np.zeros(3)
 
@@ -91,10 +120,8 @@ def main():
                 for m in range(0, k):
                     for n in range(0,k):
                         if(i + m < height and j + n < width):
-                            for p in range(len(W)-1):
+                            for p in range(len(W)):
                                 delta[p] += img_cinza[i+m][j+n] * W[p][m][n]
-                #for i in range(0,2):
-                #    print("delta = ", delta[i])
                 delta *= 2
                 delta /= k**2
                 norm_val = cv.norm(delta, cv.NORM_INF)
@@ -145,8 +172,13 @@ def main():
 
     im_floodfill = homogeneous_img.copy()
 
-    cv.imshow('Imagem com blocos',homogeneous_img)
-    cv.waitKey(0)
+    while(1):
+        cv.imshow('Imagem com blocos',homogeneous_img)
+        k = cv.waitKey(0)
+        if k == 27:
+            exit(0)
+        else:
+            break
 
     visited = set()
     r = 5.0
@@ -197,8 +229,9 @@ def main():
                         for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
                             im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
                     
-                    #cv.imshow("rect", im_padding)
-                  
+                    # cv.imshow("rect", im_padding)
+                    # cv.waitKey(0)   
+
                     white = np.sum(im_padding > 200)
                     cv.floodFill(im_padding, None, (0, 0), 255)
 
@@ -211,12 +244,19 @@ def main():
                                     components += 1
 
                     if components > 0:
-                        cv.rectangle(A,(x0,y0),(x1,y1),(0,255,0),2)
+                        # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+                        contours, hierarchy = cv.findContours(im_uint, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+                        hull_list = []
+                        for index in range(len(contours)):
+                            hull_list.append(cv.convexHull(contours[index]))
+                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 3) 
+                        # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
-#                    print(components)
+                    print("rect:", x0 , y0, x1, y1)
+                    print("components: ", components)
 
 
-#    print(len(visited))
+    print(len(visited))
     cv.imshow("final", A)
     cv.waitKey(0)
 
