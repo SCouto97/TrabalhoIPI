@@ -27,7 +27,8 @@ def norm8(I):
 def main():
 
     A = cv.imread('img/img3.jpg')
-    A = cv.resize(A, ( int(A.shape[1]/2),int(A.shape[0]/2)))
+    div = 2.0
+    A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
@@ -36,52 +37,48 @@ def main():
     k = 4
 
     W = []
-    threshold = 1
+    threshold = 3
 
     w1 = np.zeros((k, k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(j < k/2):
-                if(i < k/2):
+            if i%2 == 0:
+                if j%2 == 0:
                     w1[i][j] = 1
                 else:
                     w1[i][j] = -1
             else:
-                if(i >= k/2):
-                    w1[i][j] = 1
-                else:
+                if j%2 == 0:
                     w1[i][j] = -1
+                else:
+                    w1[i][j] = 1
 
     w2 = np.zeros((k,k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(i < k/2):
-                w2[i][j] = -1
-            else:
+            if j%2 == 0:
                 w2[i][j] = 1
+            else:
+                w2[i][j] = -1
 
 
     w3 = np.zeros((k,k))
 
     for i in range(0,k):
         for j in range(0,k):
-            if(j < k/2):
+            if i%2 == 0:
                 w3[i][j] = 1
             else:
                 w3[i][j] = -1
 
-    w4 = np.zeros((k,k))
-
-    for i in range(0,k):
-        for j in range(0,k):
-            w4[i][j] = 1 if j % 2 == 0 else -1
 
     W.append(w1)
     W.append(w2)
     W.append(w3)
-#    W.append(w4)
+
+    # print(W);
 
     delta = np.zeros(3)
 
@@ -91,10 +88,8 @@ def main():
                 for m in range(0, k):
                     for n in range(0,k):
                         if(i + m < height and j + n < width):
-                            for p in range(len(W)-1):
+                            for p in range(len(W)):
                                 delta[p] += img_cinza[i+m][j+n] * W[p][m][n]
-                #for i in range(0,2):
-                #    print("delta = ", delta[i])
                 delta *= 2
                 delta /= k**2
                 norm_val = cv.norm(delta, cv.NORM_INF)
@@ -197,8 +192,9 @@ def main():
                         for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
                             im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
                     
-                    #cv.imshow("rect", im_padding)
-                  
+                    # cv.imshow("rect", im_padding)
+                    # cv.waitKey(0)   
+
                     white = np.sum(im_padding > 200)
                     cv.floodFill(im_padding, None, (0, 0), 255)
 
@@ -211,12 +207,13 @@ def main():
                                     components += 1
 
                     if components > 0:
-                        cv.rectangle(A,(x0,y0),(x1,y1),(0,255,0),2)
+                        cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
-#                    print(components)
+                    print("rect:", x0 , y0, x1, y1)
+                    print("components: ", components)
 
 
-#    print(len(visited))
+    print(len(visited))
     cv.imshow("final", A)
     cv.waitKey(0)
 
