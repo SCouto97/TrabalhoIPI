@@ -25,7 +25,7 @@ def norm8(I):
     I *= 255
     return I.astype(np.uint8)
 
-def bfsFill(img, point, img_cinza, avg, dev):
+def bfsFill(img, point, offset, img_cinza, avg, dev):
     black_threshold = 10
     fill_color = 255
     height, width = img.shape
@@ -43,10 +43,11 @@ def bfsFill(img, point, img_cinza, avg, dev):
     total_text = 0
     while not q.empty():
         cur = q.get()
-        if abs(img_cinza[cur[0]][cur[1]] - avg) > 2*dev:
-            #print('entrei')
+        x = cur[0] - offset[0]
+        y = cur[1] - offset[1]
+        if abs(img_cinza[x][y] - avg) > 2*dev:
             total_text += 1
-            color_sum += img_cinza[cur[0]][cur[1]]
+            color_sum += img_cinza[x][y]
        
         total += 1
 
@@ -60,9 +61,8 @@ def bfsFill(img, point, img_cinza, avg, dev):
 
     return total, total_text, color_sum
 
-def detect_text(div, k, threshold, thresh_color):
+def detect_text(A, div, k, threshold, thresh_color):
 
-    A = cv.imread('img/teste3.png')
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
     has_text = False
 
@@ -72,9 +72,6 @@ def detect_text(div, k, threshold, thresh_color):
 #    img_cinza = cv.filter2D(img_cinza,-1,kernel)
 
     height, width = img_cinza.shape
-
-    cv.imshow("original", img_cinza)
-    cv.waitKey(0)
 
     W = []
 
@@ -116,8 +113,6 @@ def detect_text(div, k, threshold, thresh_color):
     W.append(w1)
     W.append(w2)
     W.append(w3)
-
-    # print(W);
 
     delta = np.zeros(3)
 
@@ -222,26 +217,18 @@ def detect_text(div, k, threshold, thresh_color):
                   
                     im_aux = im_uint.copy()
                     im_uint = im_uint[x0:x1,y0:y1]
-                    rows = im_uint.shape[0]
-                    cols = im_uint.shape[1]
-#                    row_padd_init = 1
-#                    col_padd_init = 1
-#                    padding_rows = im_final.shape[0]+2
-#                    padding_cols = im_final.shape[1]+2
-#                    im_padding = np.zeros((padding_rows, padding_cols), np.uint8)
-#                    # copiando e fazendo shift da imagem no padding
-#                    for m in range(row_padd_init, (row_padd_init+im_final.shape[0])):
-#                        for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
-#                            im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
-                  
-                    # cv.imshow("rect", im_padding)
-                    # cv.waitKey(0)   
-                    total_bg = np.sum(im_uint > 200)
+                    rows, cols = im_uint.shape
                     
-                    for m in range(rows):
-                        print(m)
+                    if(cols == 0 or rows == 0):
+                        continue
+
+                    # print("ros:", rows, " c ",  cols)
+                    # cv.imshow("final", im_uint)
+                    # cv.waitKey(0)
+
+                    for m in range(0, rows):
                         cv.floodFill(im_uint, None, (0, m), 255)
-                    for m in range(cols):
+                    for m in range(0, cols):
                         cv.floodFill(im_uint, None, (m, 0), 255)
                     for m in range(rows):
                         cv.floodFill(im_uint, None, (cols-1, m), 255)
@@ -249,34 +236,33 @@ def detect_text(div, k, threshold, thresh_color):
                         cv.floodFill(im_uint, None, (m, rows-1), 255)
 
                     C = np.multiply((im_aux > 200), img_cinza)
+                    total_bg = np.sum(im_uint > 200)
                     dev = np.std(C)
                     color_sum_bg = np.sum(C)
                     avg = color_sum_bg/total_bg
-#                    print("avg: ", avg)
-#                    print("dev: ", dev)
+
                     components = 0
                     for m in range(0, rows):
                         for n in range(0, cols):
                             if im_uint[m][n] < 10:
-                                total, total_text, color_sum = bfsFill(im_uint, (m,n), img_cinza, avg, dev)
-                                if total_text != 0:
-                                    print("valor: ",abs(color_sum/total_text - color_sum_bg/total_bg))
+                                total, total_text, color_sum = bfsFill(im_uint, (m,n), (x0,y0), img_cinza, avg, dev)
                                 if total > (total_bg / 60):
+                                    if total_text != 0:
+                                        print("valor: ",abs(color_sum/total_text - color_sum_bg/total_bg))
+
                                     if (total_text != 0) and (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
                                         components += 1
-#                                ret = cv.floodFill(im_padding, None, (n, m), 255)
+                    
                     if components > 0:
-                        # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
                         has_text = True
-                        contours, hierarchy = cv.findContours(im_uint, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+                        contours, hierarchy = cv.findContours(im_aux, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
                         hull_list = []
                         for index in range(len(contours)):
                             hull_list.append(cv.convexHull(contours[index]))
                         cv.drawContours(A, hull_list, -1, (0, 255, 0), 2) 
-                      # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
 #                    print("rect:", x0 , y0, x1, y1)
-#                    print("components: ", components)
+                    print("components: ", components)
 
 
  #   print(len(visited))
@@ -284,12 +270,13 @@ def detect_text(div, k, threshold, thresh_color):
 
 def main():
 
-    div = 2.0
+    div = 5.0
     k = 2
-    thresh = 3
+    thresh = 30
     thresh_color = 60
 
-    has_text, img = detect_text(div, k, thresh, thresh_color)
+    # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
+    has_text, img = detect_text(cv.imread('dataset/img51.jpg'), div, k, thresh, thresh_color)
     
     if has_text:
         print("possui texto na imagem")
@@ -299,14 +286,6 @@ def main():
     cv.imshow("final", img)
     cv.waitKey(0)
 
-#    cv.imshow('Painted blocks',img_final)
-#    cv.waitKey(0)   
     cv.destroyAllWindows() 
-"""
-
-    cv.imshow('Floodfill',im_floodfill)
-    cv.waitKey(0)
-"""
-
 
 main()
