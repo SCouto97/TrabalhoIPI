@@ -60,17 +60,16 @@ def bfsFill(img, point, img_cinza, avg, dev):
 
     return total, total_text, color_sum
 
-def main():
+def detect_text(div, k, threshold, thresh_color):
 
-    div = 0.5
-    k = 2
-    threshold = 5
-    thresh_color = 60
-
-    A = cv.imread('img/img2.jpeg')
+    A = cv.imread('img/teste3.png')
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
+    has_text = False
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
+
+#    kernel = np.ones((5,5),np.float32)/25
+#    img_cinza = cv.filter2D(img_cinza,-1,kernel)
 
     height, width = img_cinza.shape
 
@@ -208,10 +207,10 @@ def main():
 
                     x0 = 10000
                     y0 = 10000
-
                     x1 = 0
                     y1 = 0
                     count = 0
+
                     for a in range(0,height):
                         for b in range(0, width):
                             if im_uint[a][b] != 0:
@@ -220,65 +219,84 @@ def main():
                                 y0 = min(y0,b)
                                 x1 = max(x1,a)
                                 y1 = max(y1,b)
-                    
-                    im_final = im_uint[x0:x1,y0:y1]
-
-                    row_padd_init = 1
-                    col_padd_init = 1
-
-                    rows = im_final.shape[0]
-                    cols = im_final.shape[1]
-                    padding_rows = im_final.shape[0]+2
-                    padding_cols = im_final.shape[1]+2
-                    im_padding = np.zeros((padding_rows, padding_cols), np.uint8)
-
-                    # copiando e fazendo shift da imagem no padding
-                    for m in range(row_padd_init, (row_padd_init+im_final.shape[0])):
-                        for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
-                            im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
-                    
+                  
+                    im_aux = im_uint.copy()
+                    im_uint = im_uint[x0:x1,y0:y1]
+                    rows = im_uint.shape[0]
+                    cols = im_uint.shape[1]
+#                    row_padd_init = 1
+#                    col_padd_init = 1
+#                    padding_rows = im_final.shape[0]+2
+#                    padding_cols = im_final.shape[1]+2
+#                    im_padding = np.zeros((padding_rows, padding_cols), np.uint8)
+#                    # copiando e fazendo shift da imagem no padding
+#                    for m in range(row_padd_init, (row_padd_init+im_final.shape[0])):
+#                        for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
+#                            im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
+                  
                     # cv.imshow("rect", im_padding)
                     # cv.waitKey(0)   
-
                     total_bg = np.sum(im_uint > 200)
-                    cv.floodFill(im_padding, None, (0, 0), 255)
+                    
+                    for m in range(rows):
+                        print(m)
+                        cv.floodFill(im_uint, None, (0, m), 255)
+                    for m in range(cols):
+                        cv.floodFill(im_uint, None, (m, 0), 255)
+                    for m in range(rows):
+                        cv.floodFill(im_uint, None, (cols-1, m), 255)
+                    for m in range(cols):
+                        cv.floodFill(im_uint, None, (m, rows-1), 255)
 
-                    C = np.multiply((im_uint > 200), img_cinza)
+                    C = np.multiply((im_aux > 200), img_cinza)
                     dev = np.std(C)
-
                     color_sum_bg = np.sum(C)
                     avg = color_sum_bg/total_bg
 #                    print("avg: ", avg)
 #                    print("dev: ", dev)
-
                     components = 0
                     for m in range(0, rows):
                         for n in range(0, cols):
-                            if im_padding[m][n] < 10:
-                                total, total_text, color_sum = bfsFill(im_padding, (m,n), img_cinza, avg, dev)
+                            if im_uint[m][n] < 10:
+                                total, total_text, color_sum = bfsFill(im_uint, (m,n), img_cinza, avg, dev)
                                 if total_text != 0:
                                     print("valor: ",abs(color_sum/total_text - color_sum_bg/total_bg))
                                 if total > (total_bg / 60):
-                                    if (total_text == 0) or (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
+                                    if (total_text != 0) and (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
                                         components += 1
-
 #                                ret = cv.floodFill(im_padding, None, (n, m), 255)
-
                     if components > 0:
                         # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+                        has_text = True
                         contours, hierarchy = cv.findContours(im_uint, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
                         hull_list = []
                         for index in range(len(contours)):
                             hull_list.append(cv.convexHull(contours[index]))
                         cv.drawContours(A, hull_list, -1, (0, 255, 0), 2) 
-                        # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
+                      # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
 #                    print("rect:", x0 , y0, x1, y1)
 #                    print("components: ", components)
 
 
  #   print(len(visited))
-    cv.imshow("final", A)
+    return has_text, A
+
+def main():
+
+    div = 2.0
+    k = 2
+    thresh = 3
+    thresh_color = 60
+
+    has_text, img = detect_text(div, k, thresh, thresh_color)
+    
+    if has_text:
+        print("possui texto na imagem")
+    else:
+        print("imagem nao possui texto")
+
+    cv.imshow("final", img)
     cv.waitKey(0)
 
 #    cv.imshow('Painted blocks',img_final)
