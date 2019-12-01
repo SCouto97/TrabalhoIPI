@@ -26,18 +26,18 @@ def norm8(I):
 
 def main():
 
-    A = cv.imread('img/img3.jpg')
-    div = 2.0
+    A = cv.imread('img/teste4.png')
+    div = 1.5
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
     height, width = img_cinza.shape
 
-    k = 4
+    k = 16
 
     W = []
-    threshold = 3
+    threshold = 2
 
     w1 = np.zeros((k, k))
 
