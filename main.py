@@ -270,21 +270,28 @@ def detect_text(A, div, k, threshold, thresh_color):
 
 def main():
 
-    div = 5.0
+    div = 2.0
     k = 2
-    thresh = 30
+    thresh = 5
     thresh_color = 60
-
+    # im_input = cv.imread('dataset/img51.jpg')
+    im_input = cv.imread('img/img9.jpg')
     # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
-    has_text, img = detect_text(cv.imread('dataset/img51.jpg'), div, k, thresh, thresh_color)
+    
+    has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
     
     if has_text:
         print("possui texto na imagem")
     else:
         print("imagem nao possui texto")
 
-    cv.imshow("final", img)
-    cv.waitKey(0)
+    while(1):
+        cv.imshow('Imagem final', img)
+        k = cv.waitKey(0)
+        if k == 27:
+            exit(0)
+        else:
+            break
 
     cv.destroyAllWindows() 
 
