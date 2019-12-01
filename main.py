@@ -5,9 +5,9 @@ Application to Text Segmentation in Natural Images.
 
 import cv2 as cv
 import numpy as np
+from queue import *
 
 blocks = set()
-img_cinza = np.zeros((0, 0))
 
 def is_homogeneous(x,y):
     return (x,y) in blocks
@@ -25,7 +25,7 @@ def norm8(I):
     I *= 255
     return I.astype(np.uint8)
 
-def bfsFill(img, point):
+def bfsFill(img, point, img_cinza, avg, dev):
     black_threshold = 10
     fill_color = 255
     height, width = img.shape
@@ -40,34 +40,42 @@ def bfsFill(img, point):
     q.put(point)
     total = 0
     color_sum = 0
+    total_text = 0
     while not q.empty():
         cur = q.get()
+        if abs(img_cinza[cur[0]][cur[1]] - avg) > 2*dev:
+            #print('entrei')
+            total_text += 1
+            color_sum += img_cinza[cur[0]][cur[1]]
+       
         total += 1
-        color_sum += img_cinza[cur[0]][cur[1]]
 
         for k in range(0,len(roff)):
             i = cur[0] + roff[k]
-            j = cur[1] + roff[k]
+            j = cur[1] + coff[k]
 
             if (i >= 0 and i < height and j >= 0 and j < width and img[i][j] <= black_threshold):
                 img[i][j] = fill_color 
                 q.put((i,j))
 
-    return total, color_sum
+    return total, total_text, color_sum
 
 def main():
 
-    div = 2.0
+    div = 0.5
     k = 2
-    threshold = 10
+    threshold = 5
+    thresh_color = 60
 
-    A = cv.imread('img/img8.jpg')
+    A = cv.imread('img/img2.jpeg')
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
     height, width = img_cinza.shape
 
+    cv.imshow("original", img_cinza)
+    cv.waitKey(0)
 
     W = []
 
@@ -232,16 +240,29 @@ def main():
                     # cv.imshow("rect", im_padding)
                     # cv.waitKey(0)   
 
-                    white = np.sum(im_padding > 200)
+                    total_bg = np.sum(im_uint > 200)
                     cv.floodFill(im_padding, None, (0, 0), 255)
+
+                    C = np.multiply((im_uint > 200), img_cinza)
+                    dev = np.std(C)
+
+                    color_sum_bg = np.sum(C)
+                    avg = color_sum_bg/total_bg
+#                    print("avg: ", avg)
+#                    print("dev: ", dev)
 
                     components = 0
                     for m in range(0, rows):
                         for n in range(0, cols):
                             if im_padding[m][n] < 10:
-                                ret = cv.floodFill(im_padding, None, (n, m), 255)
-                                if ret[0] > (white / 60):
-                                    components += 1
+                                total, total_text, color_sum = bfsFill(im_padding, (m,n), img_cinza, avg, dev)
+                                if total_text != 0:
+                                    print("valor: ",abs(color_sum/total_text - color_sum_bg/total_bg))
+                                if total > (total_bg / 60):
+                                    if (total_text == 0) or (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
+                                        components += 1
+
+#                                ret = cv.floodFill(im_padding, None, (n, m), 255)
 
                     if components > 0:
                         # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
@@ -249,14 +270,14 @@ def main():
                         hull_list = []
                         for index in range(len(contours)):
                             hull_list.append(cv.convexHull(contours[index]))
-                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 3) 
+                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 2) 
                         # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
-                    print("rect:", x0 , y0, x1, y1)
-                    print("components: ", components)
+#                    print("rect:", x0 , y0, x1, y1)
+#                    print("components: ", components)
 
 
-    print(len(visited))
+ #   print(len(visited))
     cv.imshow("final", A)
     cv.waitKey(0)
 
