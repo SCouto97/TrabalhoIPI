@@ -34,10 +34,10 @@ def main():
 
     height, width = img_cinza.shape
 
-    k = 16
+    k = 8
 
     W = []
-    threshold = 2
+    threshold = 1
 
     w1 = np.zeros((k, k))
 
@@ -207,7 +207,13 @@ def main():
                                     components += 1
 
                     if components > 0:
-                        cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
+                        # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+                        contours, hierarchy = cv.findContours(im_uint, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+                        hull_list = []
+                        for index in range(len(contours)):
+                            hull_list.append(cv.convexHull(contours[index]))
+                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 3) 
+                        # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
 
                     print("rect:", x0 , y0, x1, y1)
                     print("components: ", components)
