@@ -7,6 +7,7 @@ import cv2 as cv
 import numpy as np
 
 blocks = set()
+img_cinza = np.zeros((0, 0))
 
 def is_homogeneous(x,y):
     return (x,y) in blocks
@@ -24,13 +25,43 @@ def norm8(I):
     I *= 255
     return I.astype(np.uint8)
 
+def bfsFill(img, point):
+    black_threshold = 10
+    fill_color = 255
+    height, width = img.shape
+
+    if (img[point[0]][point[1]] > black_threshold):
+        return
+
+    roff = [-1,0,1,0]
+    coff = [0,1,0,-1]
+
+    q = Queue()
+    q.put(point)
+    total = 0
+    color_sum = 0
+    while not q.empty():
+        cur = q.get()
+        total += 1
+        color_sum += img_cinza[cur[0]][cur[1]]
+
+        for k in range(0,len(roff)):
+            i = cur[0] + roff[k]
+            j = cur[1] + roff[k]
+
+            if (i >= 0 and i < height and j >= 0 and j < width and img[i][j] <= black_threshold):
+                img[i][j] = fill_color 
+                q.put((i,j))
+
+    return total, color_sum
+
 def main():
 
     div = 2.0
     k = 2
-    threshold = 3
+    threshold = 10
 
-    A = cv.imread('img/teste4.png')
+    A = cv.imread('img/img8.jpg')
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
