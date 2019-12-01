@@ -5,7 +5,6 @@ Application to Text Segmentation in Natural Images.
 
 import cv2 as cv
 import numpy as np
-import random as rand
 
 blocks = set()
 
