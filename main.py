@@ -31,7 +31,7 @@ def bfsFill(img, point):
     height, width = img.shape
 
     if (img[point[0]][point[1]] > black_threshold):
-        return
+        return 0, 0
 
     roff = [-1,0,1,0]
     coff = [0,1,0,-1]
