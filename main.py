@@ -26,18 +26,19 @@ def norm8(I):
 
 def main():
 
+    div = 2.0
+    k = 2
+    threshold = 3
+
     A = cv.imread('img/teste4.png')
-    div = 1.5
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
     height, width = img_cinza.shape
 
-    k = 8
 
     W = []
-    threshold = 1
 
     w1 = np.zeros((k, k))
 
@@ -140,8 +141,13 @@ def main():
 
     im_floodfill = homogeneous_img.copy()
 
-    cv.imshow('Imagem com blocos',homogeneous_img)
-    cv.waitKey(0)
+    while(1):
+        cv.imshow('Imagem com blocos',homogeneous_img)
+        k = cv.waitKey(0)
+        if k == 27:
+            exit(0)
+        else:
+            break
 
     visited = set()
     r = 5.0
