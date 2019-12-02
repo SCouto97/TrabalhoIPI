@@ -5,9 +5,9 @@ Application to Text Segmentation in Natural Images.
 
 import cv2 as cv
 import numpy as np
+from queue import *
 
 blocks = set()
-img_cinza = np.zeros((0, 0))
 
 def is_homogeneous(x,y):
     return (x,y) in blocks
@@ -25,13 +25,13 @@ def norm8(I):
     I *= 255
     return I.astype(np.uint8)
 
-def bfsFill(img, point):
+def bfsFill(img, point, offset, img_cinza, avg, dev):
     black_threshold = 10
     fill_color = 255
     height, width = img.shape
 
     if (img[point[0]][point[1]] > black_threshold):
-        return
+        return 0, 0
 
     roff = [-1,0,1,0]
     coff = [0,1,0,-1]
@@ -40,34 +40,38 @@ def bfsFill(img, point):
     q.put(point)
     total = 0
     color_sum = 0
+    total_text = 0
     while not q.empty():
         cur = q.get()
+        x = cur[0] - offset[0]
+        y = cur[1] - offset[1]
+        if abs(img_cinza[x][y] - avg) > 2*dev:
+            total_text += 1
+            color_sum += img_cinza[x][y]
+       
         total += 1
-        color_sum += img_cinza[cur[0]][cur[1]]
 
         for k in range(0,len(roff)):
             i = cur[0] + roff[k]
-            j = cur[1] + roff[k]
+            j = cur[1] + coff[k]
 
             if (i >= 0 and i < height and j >= 0 and j < width and img[i][j] <= black_threshold):
                 img[i][j] = fill_color 
                 q.put((i,j))
 
-    return total, color_sum
+    return total, total_text, color_sum
 
-def main():
+def detect_text(A, div, k, threshold, thresh_color):
 
-    div = 2.0
-    k = 2
-    threshold = 10
-
-    A = cv.imread('img/img8.jpg')
     A = cv.resize(A, ( int(A.shape[1]/div),int(A.shape[0]/div)))
+    has_text = False
 
     img_cinza = cv.cvtColor(A,cv.COLOR_BGR2GRAY)
 
-    height, width = img_cinza.shape
+#    kernel = np.ones((5,5),np.float32)/25
+#    img_cinza = cv.filter2D(img_cinza,-1,kernel)
 
+    height, width = img_cinza.shape
 
     W = []
 
@@ -109,8 +113,6 @@ def main():
     W.append(w1)
     W.append(w2)
     W.append(w3)
-
-    # print(W);
 
     delta = np.zeros(3)
 
@@ -200,10 +202,10 @@ def main():
 
                     x0 = 10000
                     y0 = 10000
-
                     x1 = 0
                     y1 = 0
                     count = 0
+
                     for a in range(0,height):
                         for b in range(0, width):
                             if im_uint[a][b] != 0:
@@ -212,62 +214,84 @@ def main():
                                 y0 = min(y0,b)
                                 x1 = max(x1,a)
                                 y1 = max(y1,b)
+                  
+                    im_aux = im_uint.copy()
+                    im_uint = im_uint[x0:x1,y0:y1]
+                    rows, cols = im_uint.shape
                     
-                    im_final = im_uint[x0:x1,y0:y1]
+                    if(cols == 0 or rows == 0):
+                        continue
 
-                    row_padd_init = 1
-                    col_padd_init = 1
+                    # print("ros:", rows, " c ",  cols)
+                    # cv.imshow("final", im_uint)
+                    # cv.waitKey(0)
 
-                    rows = im_final.shape[0]
-                    cols = im_final.shape[1]
-                    padding_rows = im_final.shape[0]+2
-                    padding_cols = im_final.shape[1]+2
-                    im_padding = np.zeros((padding_rows, padding_cols), np.uint8)
+                    for m in range(0, rows):
+                        cv.floodFill(im_uint, None, (0, m), 255)
+                    for m in range(0, cols):
+                        cv.floodFill(im_uint, None, (m, 0), 255)
+                    for m in range(rows):
+                        cv.floodFill(im_uint, None, (cols-1, m), 255)
+                    for m in range(cols):
+                        cv.floodFill(im_uint, None, (m, rows-1), 255)
 
-                    # copiando e fazendo shift da imagem no padding
-                    for m in range(row_padd_init, (row_padd_init+im_final.shape[0])):
-                        for n in range(col_padd_init, (col_padd_init+im_final.shape[1])):
-                            im_padding[m,n] = im_final[m-row_padd_init, n-col_padd_init]
-                    
-                    # cv.imshow("rect", im_padding)
-                    # cv.waitKey(0)   
-
-                    white = np.sum(im_padding > 200)
-                    cv.floodFill(im_padding, None, (0, 0), 255)
+                    C = np.multiply((im_aux > 200), img_cinza)
+                    total_bg = np.sum(im_uint > 200)
+                    dev = np.std(C)
+                    color_sum_bg = np.sum(C)
+                    avg = color_sum_bg/total_bg
 
                     components = 0
                     for m in range(0, rows):
                         for n in range(0, cols):
-                            if im_padding[m][n] < 10:
-                                ret = cv.floodFill(im_padding, None, (n, m), 255)
-                                if ret[0] > (white / 60):
-                                    components += 1
+                            if im_uint[m][n] < 10:
+                                total, total_text, color_sum = bfsFill(im_uint, (m,n), (x0,y0), img_cinza, avg, dev)
+                                if total > (total_bg / 60):
+                                    if total_text != 0:
+                                        print("valor: ",abs(color_sum/total_text - color_sum_bg/total_bg))
 
+                                    if (total_text != 0) and (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
+                                        components += 1
+                    
                     if components > 0:
-                        # contours, hierarchy = cv.findContours(im_uint, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-                        contours, hierarchy = cv.findContours(im_uint, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+                        has_text = True
+                        contours, hierarchy = cv.findContours(im_aux, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
                         hull_list = []
                         for index in range(len(contours)):
                             hull_list.append(cv.convexHull(contours[index]))
-                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 3) 
-                        # cv.rectangle(A,(y0,x0),(y1,x1),(0,255,0),2)
+                        cv.drawContours(A, hull_list, -1, (0, 255, 0), 2) 
 
-                    print("rect:", x0 , y0, x1, y1)
+#                    print("rect:", x0 , y0, x1, y1)
                     print("components: ", components)
 
 
-    print(len(visited))
-    cv.imshow("final", A)
-    cv.waitKey(0)
+ #   print(len(visited))
+    return has_text, A
 
-#    cv.imshow('Painted blocks',img_final)
-#    cv.waitKey(0)   
+def main():
+
+    div = 1.0
+    k = 2
+    thresh = 3
+    thresh_color = 60
+    # im_input = cv.imread('dataset/img51.jpg')
+    
+    im_input = cv.imread('dataset/img43.jpg')
+    # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
+    
+    has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
+    
+    if has_text:
+        print("possui texto na imagem")
+    else:
+        print("imagem nao possui texto")
+
+    while(1):
+        cv.imshow('Imagem final', img)
+        k = cv.waitKey(0)
+        if k == 27:
+            exit(0)
+
     cv.destroyAllWindows() 
-"""
-
-    cv.imshow('Floodfill',im_floodfill)
-    cv.waitKey(0)
-"""
-
 
 main()
