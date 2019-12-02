@@ -270,12 +270,13 @@ def detect_text(A, div, k, threshold, thresh_color):
 
 def main():
 
-    div = 2.0
+    div = 1.0
     k = 2
-    thresh = 5
+    thresh = 3
     thresh_color = 60
     # im_input = cv.imread('dataset/img51.jpg')
-    im_input = cv.imread('img/img9.jpg')
+    
+    im_input = cv.imread('dataset/img43.jpg')
     # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
     
     has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
@@ -290,8 +291,6 @@ def main():
         k = cv.waitKey(0)
         if k == 27:
             exit(0)
-        else:
-            break
 
     cv.destroyAllWindows() 
 
