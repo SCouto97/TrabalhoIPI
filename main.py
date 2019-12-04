@@ -235,6 +235,8 @@ def detect_text(A, div, k, threshold, thresh_color):
                     for m in range(cols):
                         cv.floodFill(im_uint, None, (m, rows-1), 255)
 
+                    only_text = im_uint.copy()
+
                     C = np.multiply((im_aux > 200), img_cinza)
                     total_bg = np.sum(im_uint > 200)
                     dev = np.std(C)
@@ -252,13 +254,21 @@ def detect_text(A, div, k, threshold, thresh_color):
 
                                     if (total_text != 0) and (abs(color_sum/total_text - color_sum_bg/total_bg) >= thresh_color):
                                         components += 1
+                                    else: 
+                                        cv.floodFill(only_text, None, (n, m), 255)
+                                else:
+                                    cv.floodFill(only_text, None, (n, m), 255)
+                                
                     
                     if components > 0:
                         has_text = True
-                        contours, hierarchy = cv.findContours(im_aux, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+                        only_text = 255 - only_text
+                        contours, hierarchy = cv.findContours(only_text, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
                         hull_list = []
                         for index in range(len(contours)):
-                            hull_list.append(cv.convexHull(contours[index]))
+                            contours[index] += (y0, x0)
+                            hull_list.append(contours[index])                            
+                            # hull_list.append(cv.convexHull(contours[index]))
                         cv.drawContours(A, hull_list, -1, (0, 255, 0), 2) 
 
 #                    print("rect:", x0 , y0, x1, y1)
@@ -272,11 +282,11 @@ def main():
 
     div = 2.0
     k = 2
-    thresh = 7
+    thresh = 10
     thresh_color = 60
-    # im_input = cv.imread('dataset/img51.jpg')
+    # im_input = cv.imread('dataset/img2.jpg')
     
-    im_input = cv.imread('dataset/img9.jpg')
+    im_input = cv.imread('dataset/img6.jpg')
     # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
     
     has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
