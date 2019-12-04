@@ -1,10 +1,6 @@
-'''
-Seguindo passos mencionados no artigo Morphology-Based Hierarchical Representation with
-Application to Text Segmentation in Natural Images.
-'''
-
 import cv2 as cv
 import numpy as np
+import sys as sys
 from queue import *
 
 blocks = set()
@@ -175,7 +171,8 @@ def detect_text(A, div, k, threshold, thresh_color):
     im_floodfill = homogeneous_img.copy()
 
     while(1):
-        cv.imshow('Imagem com blocos',homogeneous_img)
+        print("Aperte qualquer tecla para continuar")
+        cv.imshow('Imagem com blocos - aperte qualquer tecla para continuar',homogeneous_img)
         k = cv.waitKey(0)
         if k == 27:
             exit(0)
@@ -286,7 +283,9 @@ def main():
     thresh_color = 60
     # im_input = cv.imread('dataset/img2.jpg')
     
-    im_input = cv.imread('dataset/img6.jpg')
+    file_name = sys.argv[1]
+
+    im_input = cv.imread(file_name)
     # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
     
     has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
