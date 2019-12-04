@@ -43,8 +43,8 @@ def bfsFill(img, point, offset, img_cinza, avg, dev):
     total_text = 0
     while not q.empty():
         cur = q.get()
-        x = cur[0] - offset[0]
-        y = cur[1] - offset[1]
+        x = cur[0] + offset[0]
+        y = cur[1] + offset[1]
         if abs(img_cinza[x][y] - avg) > 2*dev:
             total_text += 1
             color_sum += img_cinza[x][y]
@@ -270,13 +270,13 @@ def detect_text(A, div, k, threshold, thresh_color):
 
 def main():
 
-    div = 1.0
+    div = 2.0
     k = 2
-    thresh = 3
+    thresh = 7
     thresh_color = 60
     # im_input = cv.imread('dataset/img51.jpg')
     
-    im_input = cv.imread('dataset/img43.jpg')
+    im_input = cv.imread('dataset/img9.jpg')
     # has_text, img = detect_text(cv.imread('img/img51.jpg'), div, k, thresh, thresh_color)
     
     has_text, img = detect_text(im_input, div, k, thresh, thresh_color)
